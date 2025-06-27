@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>MxB Lite - Secure Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    :root {
+      --primary-green: #00ff41;
+      --secondary-green: #008f11;
+      --dark-bg: #0d1117;
+      --darker-bg: #010409;
+      --border-green: #30363d;
+      --text-gray: #8b949e;
+      --danger-red: #f85149;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #000000;
+      color: #c9d1d9;
+      line-height: 1.6;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Matrix Rain Effect */
+    .matrix-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0.1;
+    }
+
+    .matrix-column {
+      position: absolute;
+      top: -100px;
+      color: var(--primary-green);
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      animation: matrix-fall linear infinite;
+      text-shadow: 0 0 5px var(--primary-green);
+    }
+
+    @keyframes matrix-fall {
+      to {
+        transform: translateY(100vh);
+      }
+    }
+
+    /* Glitch Effect */
+    .glitch {
+      position: relative;
+      color: var(--primary-green);
+      animation: glitch 2s infinite;
+    }
+
+    .glitch::before,
+    .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .glitch::before {
+      animation: glitch-1 0.5s infinite;
+      color: #ff0040;
+      z-index: -1;
+    }
+
+    .glitch::after {
+      animation: glitch-2 0.5s infinite;
+      color: #00ffff;
+      z-index: -2;
+    }
+
+    @keyframes glitch {
+      0%, 100% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+    }
+
+    @keyframes glitch-1 {
+      0%, 100% { transform: translate(0); }
+      10% { transform: translate(-2px, -2px); }
+      20% { transform: translate(2px, 2px); }
+    }
+
+    @keyframes glitch-2 {
+      0%, 100% { transform: translate(0); }
+      10% { transform: translate(2px, 2px); }
+      20% { transform: translate(-2px, -2px); }
+    }
+
+    /* Scanning Lines */
+    .scan-lines::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 98%,
+        rgba(0, 255, 65, 0.03) 100%
+      );
+      background-size: 3px 100%;
+      pointer-events: none;
+      animation: scan 0.1s linear infinite;
+    }
+
+    @keyframes scan {
+      0% { background-position: 0 0; }
+      100% { background-position: 3px 0; }
+    }
+
+    .terminal-container {
+      background: #0d1117;
+      border: 1px solid var(--primary-green);
+      border-radius: 8px;
+      box-shadow: 
+        0 0 20px rgba(0, 255, 65, 0.2),
+        inset 0 0 20px rgba(0, 255, 65, 0.05);
+      position: relative;
+    }
+
+    .terminal-header {
+      background: #2d3748;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-red { background: #ff5f56; }
+    .terminal-yellow { background: #ffbd2e; }
+    .terminal-green { background: #27ca3f; }
+
+    .green-button {
+      background: #000;
+      color: var(--primary-green);
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--primary-green);
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .green-button:hover {
+      background: var(--primary-green);
+      color: #000;
+      text-shadow: none;
+    }
+
+    .green-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .green-button:hover::before {
+      left: 100%;
+    }
+
+    .cleanup-button {
+      background: #000;
+      color: var(--danger-red);
+      font-weight: 700;
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--danger-red);
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 1px;
+      width: 100%;
+      margin: 1rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cleanup-button:hover {
+      background: var(--danger-red);
+      color: #000;
+      text-shadow: none;
+    }
+
+    .cleanup-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(248, 81, 73, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .cleanup-button:hover::before {
+      left: 100%;
+    }
+
+    .terminal-input {
+      background: #2d3748;
+      border: 1px solid var(--border-green);
+      color: var(--primary-green);
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      width: 100%;
+      font-size: 0.875rem;
+    }
+
+    .terminal-input:focus {
+      outline: none;
+      border-color: var(--primary-green);
+    }
+
+    .terminal-input::placeholder {
+      color: #6b7280;
+    }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .nav-button {
+      background: #000;
+      color: var(--primary-green);
+      font-weight: 600;
+      padding: 0.75rem;
+      border: 1px solid var(--primary-green);
+      border-radius: 0;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-button:hover {
+      background: var(--primary-green);
+      color: #000;
+    }
+
+    .nav-button.active {
+      background: var(--primary-green);
+      color: #000;
+      border-color: var(--primary-green);
+    }
+
+    .nav-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .nav-button:hover::before {
+      left: 100%;
+    }
+
+    .upload-section {
+      background: #2d3748;
+      border: 1px solid var(--border-green);
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 0.5rem 0;
+    }
+
+    .file-input {
+      background: #1a1f2e;
+      border: 1px solid var(--border-green);
+      color: var(--primary-green);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      width: 100%;
+      font-size: 0.875rem;
+      margin: 0.5rem 0;
+    }
+
+    .section-title {
+      color: var(--primary-green);
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 1rem 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .tab {
+      display: none;
+    }
+
+    .tab.active {
+      display: block;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary-green);
+      animation: pulse 2s infinite;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .whatsapp-button {
+      position: fixed;
+      bottom: 120px;
+      left: 20px;
+      width: 50px;
+      height: 50px;
+      background: #25d366;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 24px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      animation: pulse 2s infinite;
+    }
+
+    .whatsapp-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(37, 211, 102, 0.6);
+    }
+
+    .copyright-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #000;
+      border-top: 1px solid var(--primary-green);
+      padding: 10px;
+      text-align: center;
+      color: var(--text-gray);
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 999;
+    }
+
+    .copyright-banner .copyright-text {
+      color: var(--primary-green);
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 scan-lines">
+  <!-- Matrix Background -->
+  <div class="matrix-bg" id="matrixBg"></div>
+  <div class="max-w-md mx-auto">
+    <!-- Terminal Header -->
+    <div class="terminal-container mb-4">
+      <div class="terminal-header">
+        <div class="terminal-dot terminal-red"></div>
+        <div class="terminal-dot terminal-yellow"></div>
+        <div class="terminal-dot terminal-green"></div>
+        <span class="text-sm text-gray-300 ml-2">root@mxb-portal:~$</span>
+      </div>
+      <div class="p-6 text-center">
+        <h1 class="text-3xl font-bold mb-2 text-green-400 glitch" data-text="MxB LITE">MxB LITE</h1>
+        <p class="text-sm text-gray-400 font-mono">Secure file download</p>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="terminal-container mb-4">
+      <div class="p-3">
+        <div class="text-xs text-gray-400 mb-2">search.exe</div>
+        <input 
+          id="searchBox" 
+          type="text" 
+          placeholder="$ grep -r 'keyword' database/" 
+          class="terminal-input"
+          oninput="applySearch()"
+        >
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-grid">
+      <button onclick="switchTab('apps')" class="nav-button active" id="apps-btn">📱 APPS</button>
+      <button onclick="switchTab('documents')" class="nav-button" id="docs-btn">📄 DOCS</button>
+      <button onclick="switchTab('links')" class="nav-button" id="links-btn">🔗 LINKS</button>
+      <button onclick="switchTab('admin')" class="nav-button" id="admin-btn">⚡ ADMIN</button>
+    </div>
+
+    <!-- Content Sections -->
+    <div id="apps" class="tab active">
+      <div class="terminal-container">
+        <div class="p-4">
+          <div id="apkList">
+            <div class="text-center py-8 text-gray-400 text-sm">Loading applications...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="documents" class="tab">
+      <div class="terminal-container">
+        <div class="p-4">
+          <div id="docList">
+            <div class="text-center py-8 text-gray-400 text-sm">Loading documents...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="links" class="tab">
+      <div class="terminal-container">
+        <div class="p-4">
+          <div id="linkList">
+            <div class="text-center py-8 text-gray-400 text-sm">Loading links...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin" class="tab">
+      <div class="terminal-container">
+        <div class="p-4">
+          <h2 class="text-lg font-bold mb-4 text-red-400 text-center">RESTRICTED ACCESS</h2>
+          <input 
+            id="adminPass" 
+            type="password" 
+            placeholder="Enter security token..." 
+            class="terminal-input mb-4"
+          >
+          <button onclick="checkAdmin()" class="green-button w-full">AUTHENTICATE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Panel -->
+    <div id="upload" class="tab">
+      <div class="terminal-container">
+        <div class="p-4">
+          <div class="text-xs text-gray-400 mb-2">upload-manager.exe</div>
+          <div class="section-title">UPLOAD CONTROL PANEL</div>
+
+          <!-- Cleanup Button -->
+          <button onclick="cleanupAllFiles()" class="cleanup-button">
+            🗑️ CLEANUP
+          </button>
+
+          <!-- App Upload -->
+          <div class="upload-section">
+            <div class="text-xs text-gray-400 mb-2">app-upload.exe</div>
+            <form id="apkForm">
+              <input type="text" id="apkName" placeholder="Application name..." class="file-input" required>
+              <input type="file" id="apkFile" class="file-input" accept=".apk" required>
+              <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
+            </form>
+          </div>
+
+          <!-- Document Upload -->
+          <div class="upload-section">
+            <div class="text-xs text-gray-400 mb-2">doc-upload.exe</div>
+            <form id="docForm">
+              <input type="text" id="docName" placeholder="Sample" class="file-input" required>
+              <input type="file" id="docFile" class="file-input" accept=".pdf,.doc,.docx" required>
+              <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
+            </form>
+          </div>
+
+          <!-- Link Upload -->
+          <div class="upload-section">
+            <div class="text-xs text-gray-400 mb-2">link-manager.exe</div>
+            <form id="linkForm">
+              <input type="text" id="linkName" placeholder="Link name..." class="file-input" required>
+              <input type="url" id="linkUrl" placeholder="https://example.com" class="file-input" required>
+              <button class="green-button w-full mt-2" type="submit">ADD LINK</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp Button -->
+  <a href="https://wa.me/+233533684041" target="_blank" class="whatsapp-button" title="Contact on WhatsApp">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.148z"/>
+    </svg>
+  </a>
+
+  <!-- Copyright Banner -->
+  <div class="copyright-banner">
+    <span class="copyright-text">© 2024 MxB LITE</span> • SECURE PORTAL • ALL RIGHTS RESERVED
+  </div>
+
+  <script>
+    // Initialize Supabase
+    let supabaseClient;
+
+    window.addEventListener('load', () => {
+      if (typeof supabase !== 'undefined') {
+        const { createClient } = supabase;
+        supabaseClient = createClient('https://buswluszzfbbezcgwbty.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c3dsdXN6emZiYmV6Y2d3YnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMDY2NDUsImV4cCI6MjA2NjU4MjY0NX0.eX_qEDabyqj0AWeqiwVXko9W4OYg3H9PYNxd5fPKis0');
+        loadData();
+      } else {
+        console.error('Supabase library not loaded');
+      }
+      initMatrixEffect();
+    });
+
+    // Matrix Rain Effect
+    function initMatrixEffect() {
+      const matrixBg = document.getElementById('matrixBg');
+      const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+      
+      for (let i = 0; i < 50; i++) {
+        const column = document.createElement('div');
+        column.className = 'matrix-column';
+        column.style.left = Math.random() * 100 + '%';
+        column.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        column.style.animationDelay = Math.random() * 2 + 's';
+        
+        let text = '';
+        for (let j = 0; j < 20; j++) {
+          text += chars.charAt(Math.floor(Math.random() * chars.length)) + '\n';
+        }
+        column.textContent = text;
+        
+        matrixBg.appendChild(column);
+      }
+    }
+
+    function switchTab(tab) {
+      // Hide all tabs
+      document.querySelectorAll('.tab').forEach(div => div.classList.remove('active'));
+      document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+
+      // Show selected tab
+      const tabElement = document.getElementById(tab);
+      const btnElement = document.getElementById(tab + '-btn');
+      
+      if (tabElement) tabElement.classList.add('active');
+      if (btnElement) btnElement.classList.add('active');
+    }
+
+    function checkAdmin() {
+      const pass = document.getElementById('adminPass').value;
+      if (pass === 'MIKE') {
+        switchTab('upload');
+        document.getElementById('adminPass').value = '';
+      } else {
+        alert('ACCESS DENIED - INVALID TOKEN');
+      }
+    }
+
+    function applySearch() {
+      const term = document.getElementById("searchBox").value.toLowerCase();
+      ["apkList", "docList", "linkList"].forEach(id => {
+        const items = document.getElementById(id).children;
+        for (const item of items) {
+          if (item.textContent && item.textContent.toLowerCase().includes(term)) {
+            item.style.display = "block";
+          } else {
+            item.style.display = "none";
+          }
+        }
+      });
+    }
+
+    // Functional cleanup button
+    async function cleanupAllFiles() {
+      if (!supabaseClient) {
+        alert('SYSTEM NOT READY - PLEASE WAIT');
+        return;
+      }
+
+      if (confirm('⚠️ WARNING: This will delete ALL files from the database and storage. This action CANNOT be undone. Are you sure?')) {
+        if (confirm('🚨 FINAL WARNING: You are about to permanently delete ALL data. Type YES to confirm or Cancel to abort.')) {
+          try {
+            // Show loading state
+            const cleanupBtn = document.querySelector('.cleanup-button');
+            const originalText = cleanupBtn.innerHTML;
+            cleanupBtn.innerHTML = '🔄 CLEANING UP...';
+            cleanupBtn.disabled = true;
+
+            // Delete from database tables using proper syntax
+            const { error: apkError } = await supabaseClient.from('apk_files').delete().not('id', 'is', null);
+            if (apkError) throw apkError;
+
+            const { error: docError } = await supabaseClient.from('documents').delete().not('id', 'is', null);
+            if (docError) throw docError;
+
+            const { error: linkError } = await supabaseClient.from('links').delete().not('id', 'is', null);
+            if (linkError) throw linkError;
+
+            // List and delete all files from storage
+            const { data: files, error: listError } = await supabaseClient.storage.from('uploads').list('', {
+              limit: 1000,
+              offset: 0
+            });
+
+            if (listError) throw listError;
+
+            if (files && files.length > 0) {
+              // Delete files from storage
+              const filePaths = files.map(file => file.name);
+              const { error: deleteError } = await supabaseClient.storage.from('uploads').remove(filePaths);
+              if (deleteError) throw deleteError;
+            }
+
+            // Reset button
+            cleanupBtn.innerHTML = originalText;
+            cleanupBtn.disabled = false;
+
+            // Refresh all data
+            loadData();
+
+            alert('✅ CLEANUP COMPLETED SUCCESSFULLY\n\nAll files have been permanently deleted from the system.');
+
+          } catch (error) {
+            console.error('Cleanup error:', error);
+            alert('❌ CLEANUP FAILED: ' + error.message);
+
+            // Reset button
+            const cleanupBtn = document.querySelector('.cleanup-button');
+            cleanupBtn.innerHTML = '🗑️ CLEANUP';
+            cleanupBtn.disabled = false;
+          }
+        }
+      }
+    }
+
+    function createItemElement(name, size, type, url, isLink = false) {
+      const actionText = isLink ? 'ACCESS' : 'DOWNLOAD';
+      const typeDisplay = size ? `${size} • ${type}` : type || 'External Link';
+      const downloadAttr = isLink ? '' : `download="${name}"`;
+      const onClick = isLink ? '' : `onclick="downloadFile('${url}', '${name}')"`;
+      
+      // Get thumbnail based on file type
+      let thumbnail = '📄'; // default document
+      if (type) {
+        const fileType = type.toLowerCase();
+        if (fileType.includes('pdf')) thumbnail = '📋';
+        else if (fileType.includes('doc') || fileType.includes('docx')) thumbnail = '📝';
+        else if (fileType.includes('xls') || fileType.includes('xlsx')) thumbnail = '📊';
+        else if (fileType.includes('ppt') || fileType.includes('pptx')) thumbnail = '📋';
+        else if (fileType.includes('txt')) thumbnail = '📃';
+        else if (fileType.includes('zip') || fileType.includes('rar')) thumbnail = '🗜️';
+        else if (fileType.includes('apk')) thumbnail = '📱';
+      }
+      if (isLink) thumbnail = '🔗';
+
+      return `
+        <div class="p-3 border border-gray-600 rounded mb-2 hover:border-green-400 transition-colors">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center flex-1 min-w-0">
+              <div class="text-2xl mr-3">${thumbnail}</div>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-green-400 text-sm truncate">${name}</div>
+                <div class="text-xs text-gray-400">${typeDisplay}</div>
+              </div>
+            </div>
+            <a href="${url}" ${downloadAttr} ${onClick} target="${isLink ? '_blank' : '_self'}" class="green-button ml-2 px-3 py-1 text-xs">
+              ${actionText}
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    // Form submissions
+    document.getElementById('apkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!supabaseClient) return alert('SYSTEM NOT READY - PLEASE WAIT');
+
+      const name = document.getElementById('apkName').value;
+      const file = document.getElementById('apkFile').files[0];
+      const path = `apks/${Date.now()}_${file.name}`;
+
+      try {
+        const { error: uploadErr } = await supabaseClient.storage.from('uploads').upload(path, file);
+        if (uploadErr) throw uploadErr;
+
+        const url = supabaseClient.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        const size = formatSize(file.size);
+
+        await supabaseClient.from('apk_files').insert([{ name, url, size, type: '.apk' }]);
+
+        loadData();
+        e.target.reset();
+        alert('APPLICATION UPLOADED SUCCESSFULLY');
+      } catch (error) {
+        alert('UPLOAD FAILED: ' + error.message);
+      }
+    });
+
+    document.getElementById('docForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!supabaseClient) return alert('SYSTEM NOT READY - PLEASE WAIT');
+
+      const name = document.getElementById('docName').value;
+      const file = document.getElementById('docFile').files[0];
+      const path = `documents/${Date.now()}_${file.name}`;
+
+      try {
+        const { error: uploadErr } = await supabaseClient.storage.from('uploads').upload(path, file);
+        if (uploadErr) throw uploadErr;
+
+        const url = supabaseClient.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        const size = formatSize(file.size);
+        const type = file.name.split('.').pop().toLowerCase();
+
+        await supabaseClient.from('documents').insert([{ name, url, size, type }]);
+
+        loadData();
+        e.target.reset();
+        alert('DOCUMENT UPLOADED SUCCESSFULLY');
+      } catch (error) {
+        alert('UPLOAD FAILED: ' + error.message);
+      }
+    });
+
+    document.getElementById('linkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!supabaseClient) return alert('SYSTEM NOT READY - PLEASE WAIT');
+
+      const name = document.getElementById('linkName').value;
+      const url = document.getElementById('linkUrl').value;
+
+      try {
+        await supabaseClient.from('links').insert([{ name, url }]);
+
+        loadData();
+        e.target.reset();
+        alert('LINK ADDED SUCCESSFULLY');
+      } catch (error) {
+        alert('LINK UPLOAD FAILED: ' + error.message);
+      }
+    });
+
+    function formatSize(bytes) {
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      if (bytes == 0) return '0 B';
+      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+    }
+
+    function downloadFile(url, filename) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Load existing data
+    async function loadData() {
+      if (!supabaseClient) return;
+
+      try {
+        // Load APKs
+        const { data: apks } = await supabaseClient.from('apk_files').select('*');
+        document.getElementById('apkList').innerHTML = '';
+        if (apks && apks.length > 0) {
+          apks.forEach(apk => {
+            document.getElementById('apkList').innerHTML += createItemElement(apk.name, apk.size, apk.type, apk.url);
+          });
+        } else {
+          document.getElementById('apkList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO APPLICATIONS FOUND</div>';
+        }
+
+        // Load Documents
+        const { data: docs } = await supabaseClient.from('documents').select('*');
+        document.getElementById('docList').innerHTML = '';
+        if (docs && docs.length > 0) {
+          docs.forEach(doc => {
+            document.getElementById('docList').innerHTML += createItemElement(doc.name, doc.size, doc.type, doc.url);
+          });
+        } else {
+          document.getElementById('docList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO DOCUMENTS FOUND</div>';
+        }
+
+        // Load Links
+        const { data: links } = await supabaseClient.from('links').select('*');
+        document.getElementById('linkList').innerHTML = '';
+        if (links && links.length > 0) {
+          links.forEach(link => {
+            document.getElementById('linkList').innerHTML += createItemElement(link.name, '', '', link.url, true);
+          });
+        } else {
+          document.getElementById('linkList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO LINKS FOUND</div>';
+        }
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    }
+  </script>
+</body>
+</html>
