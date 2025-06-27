@@ -40,22 +40,45 @@
       height: 100%;
       pointer-events: none;
       z-index: -1;
-      opacity: 0.1;
+      opacity: 0.15;
+      overflow: hidden;
     }
 
     .matrix-column {
       position: absolute;
       top: -100px;
       color: var(--primary-green);
-      font-size: 14px;
+      font-size: 12px;
       font-family: 'JetBrains Mono', monospace;
       animation: matrix-fall linear infinite;
-      text-shadow: 0 0 5px var(--primary-green);
+      text-shadow: 0 0 8px var(--primary-green);
+      white-space: pre;
+      line-height: 1.2;
+    }
+
+    .matrix-column:nth-child(odd) {
+      color: #00cc33;
+      text-shadow: 0 0 10px #00cc33;
+    }
+
+    .matrix-column:nth-child(even) {
+      opacity: 0.8;
     }
 
     @keyframes matrix-fall {
-      to {
-        transform: translateY(100vh);
+      0% {
+        transform: translateY(-100px);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(calc(100vh + 100px));
+        opacity: 0;
       }
     }
 
@@ -417,11 +440,11 @@
         <div class="terminal-dot terminal-red"></div>
         <div class="terminal-dot terminal-yellow"></div>
         <div class="terminal-dot terminal-green"></div>
-        <span class="text-sm text-gray-300 ml-2">root@mxb-portal:~$</span>
+        <span class="text-sm text-gray-300 ml-2">bruteforce@mik3L-portal:~$</span>
       </div>
       <div class="p-6 text-center">
-        <h1 class="text-3xl font-bold mb-2 text-green-400 glitch" data-text="MxB LITE">MxB LITE</h1>
-        <p class="text-sm text-gray-400 font-mono">Secure file download</p>
+        <h1 class="text-3xl font-bold mb-2 text-green-400 glitch" data-text="MxB LITE⚡">MxB LITE⚡</h1>
+        <p class="text-sm text-gray-400 font-mono">Secure File Access</p>
       </div>
     </div>
 
@@ -444,13 +467,16 @@
       <button onclick="switchTab('apps')" class="nav-button active" id="apps-btn">📱 APPS</button>
       <button onclick="switchTab('documents')" class="nav-button" id="docs-btn">📄 DOCS</button>
       <button onclick="switchTab('links')" class="nav-button" id="links-btn">🔗 LINKS</button>
-      <button onclick="switchTab('admin')" class="nav-button" id="admin-btn">⚡ ADMIN</button>
+      <button onclick="switchTab('admin')" class="nav-button" id="admin-btn">🛠️ ADMIN</button>
     </div>
 
     <!-- Content Sections -->
     <div id="apps" class="tab active">
       <div class="terminal-container">
         <div class="p-4">
+          <button onclick="refreshData()" class="green-button w-full mb-4 text-xs">
+            🔄 REFRESH APPS
+          </button>
           <div id="apkList">
             <div class="text-center py-8 text-gray-400 text-sm">Loading applications...</div>
           </div>
@@ -461,6 +487,9 @@
     <div id="documents" class="tab">
       <div class="terminal-container">
         <div class="p-4">
+          <button onclick="refreshData()" class="green-button w-full mb-4 text-xs">
+            🔄 REFRESH DOCS
+          </button>
           <div id="docList">
             <div class="text-center py-8 text-gray-400 text-sm">Loading documents...</div>
           </div>
@@ -471,6 +500,9 @@
     <div id="links" class="tab">
       <div class="terminal-container">
         <div class="p-4">
+          <button onclick="refreshData()" class="green-button w-full mb-4 text-xs">
+            🔄 REFRESH LINKS
+          </button>
           <div id="linkList">
             <div class="text-center py-8 text-gray-400 text-sm">Loading links...</div>
           </div>
@@ -481,7 +513,7 @@
     <div id="admin" class="tab">
       <div class="terminal-container">
         <div class="p-4">
-          <h2 class="text-lg font-bold mb-4 text-red-400 text-center">RESTRICTED ACCESS</h2>
+          <h2 class="text-lg font-bold mb-4 text-red-400 text-center">⚠️RESTRICTED ACCESS</h2>
           <input 
             id="adminPass" 
             type="password" 
@@ -548,7 +580,7 @@
 
   <!-- Copyright Banner -->
   <div class="copyright-banner">
-    <span class="copyright-text">© 2024 MxB LITE</span> • SECURE FILE ACCESS • ALL RIGHTS RESERVED
+    <span class="copyright-text">© 2024 MxB LITE⚡</span> • SECURE FILE ACCESS • ALL RIGHTS RESERVED
   </div>
 
   <script>
@@ -569,23 +601,53 @@
     // Matrix Rain Effect
     function initMatrixEffect() {
       const matrixBg = document.getElementById('matrixBg');
-      const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
-      
-      for (let i = 0; i < 50; i++) {
+      const chars = '01001010010101010101010101010101010101010101010101001001010010010101010101010101010101010101010100ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*(){}[]<>?/\\|~';
+
+      // Create more columns for denser effect
+      for (let i = 0; i < 80; i++) {
         const column = document.createElement('div');
         column.className = 'matrix-column';
         column.style.left = Math.random() * 100 + '%';
-        column.style.animationDuration = (Math.random() * 3 + 2) + 's';
-        column.style.animationDelay = Math.random() * 2 + 's';
-        
+        column.style.animationDuration = (Math.random() * 4 + 3) + 's';
+        column.style.animationDelay = Math.random() * 5 + 's';
+        column.style.fontSize = (Math.random() * 4 + 10) + 'px';
+
         let text = '';
-        for (let j = 0; j < 20; j++) {
+        const columnHeight = Math.floor(Math.random() * 20 + 15);
+        for (let j = 0; j < columnHeight; j++) {
           text += chars.charAt(Math.floor(Math.random() * chars.length)) + '\n';
         }
         column.textContent = text;
-        
+
         matrixBg.appendChild(column);
       }
+
+      // Add continuous generation of new columns
+      setInterval(() => {
+        if (matrixBg.children.length < 100) {
+          const column = document.createElement('div');
+          column.className = 'matrix-column';
+          column.style.left = Math.random() * 100 + '%';
+          column.style.animationDuration = (Math.random() * 4 + 3) + 's';
+          column.style.fontSize = (Math.random() * 4 + 10) + 'px';
+
+          let text = '';
+          const columnHeight = Math.floor(Math.random() * 20 + 15);
+          for (let j = 0; j < columnHeight; j++) {
+            text += chars.charAt(Math.floor(Math.random() * chars.length)) + '\n';
+          }
+          column.textContent = text;
+
+          matrixBg.appendChild(column);
+
+          // Remove old columns to prevent memory buildup
+          setTimeout(() => {
+            if (column.parentNode) {
+              column.parentNode.removeChild(column);
+            }
+          }, 8000);
+        }
+      }, 500);
     }
 
     function switchTab(tab) {
@@ -596,7 +658,7 @@
       // Show selected tab
       const tabElement = document.getElementById(tab);
       const btnElement = document.getElementById(tab + '-btn');
-      
+
       if (tabElement) tabElement.classList.add('active');
       if (btnElement) btnElement.classList.add('active');
     }
@@ -688,40 +750,115 @@
       }
     }
 
+    function getFileTypeIcon(type, isLink = false) {
+      if (isLink) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="m14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      }
+
+      if (!type) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+      }
+
+      const fileType = type.toLowerCase();
+
+      if (fileType.includes('pdf')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#ff4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#ff4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="16" text-anchor="middle" fill="#ff4444" font-size="8" font-family="monospace">PDF</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('doc') || fileType.includes('docx')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#2b5797" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#2b5797" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="16" text-anchor="middle" fill="#2b5797" font-size="7" font-family="monospace">DOC</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('xls') || fileType.includes('xlsx')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#217346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#217346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="16" text-anchor="middle" fill="#217346" font-size="7" font-family="monospace">XLS</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('ppt') || fileType.includes('pptx')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#d24726" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#d24726" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="16" text-anchor="middle" fill="#d24726" font-size="7" font-family="monospace">PPT</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('txt')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="8" y1="12" x2="16" y2="12" stroke="#888888" stroke-width="1"/>
+          <line x1="8" y1="16" x2="16" y2="16" stroke="#888888" stroke-width="1"/>
+        </svg>`;
+      }
+
+      if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#ffaa00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14,2 14,8 20,8" stroke="#ffaa00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="16" text-anchor="middle" fill="#ffaa00" font-size="7" font-family="monospace">ZIP</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('apk')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H8a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h2l.15-.5a2 2 0 0 1 1.85-1.5h4a2 2 0 0 1 1.85 1.5L17 8z" stroke="#a4c639" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="12" y="14" text-anchor="middle" fill="#a4c639" font-size="7" font-family="monospace">APK</text>
+        </svg>`;
+      }
+
+      if (fileType.includes('jpg') || fileType.includes('jpeg') || fileType.includes('png') || fileType.includes('gif') || fileType.includes('svg')) {
+        return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="#00ff41" stroke-width="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5" stroke="#00ff41" stroke-width="1"/>
+          <polyline points="21,15 16,10 5,21" stroke="#00ff41" stroke-width="2"/>
+        </svg>`;
+      }
+
+      // Default file icon
+      return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="14,2 14,8 20,8" stroke="#00ff41" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
     function createItemElement(name, size, type, url, isLink = false) {
       const actionText = isLink ? 'ACCESS' : 'DOWNLOAD';
       const typeDisplay = size ? `${size} • ${type}` : type || 'External Link';
       const downloadAttr = isLink ? '' : `download="${name}"`;
       const onClick = isLink ? '' : `onclick="downloadFile('${url}', '${name}')"`;
-      
+
       // Get thumbnail based on file type
-      let thumbnail = '📄'; // default document
-      if (type) {
-        const fileType = type.toLowerCase();
-        if (fileType.includes('pdf')) thumbnail = '📋';
-        else if (fileType.includes('doc') || fileType.includes('docx')) thumbnail = '📝';
-        else if (fileType.includes('xls') || fileType.includes('xlsx')) thumbnail = '📊';
-        else if (fileType.includes('ppt') || fileType.includes('pptx')) thumbnail = '📋';
-        else if (fileType.includes('txt')) thumbnail = '📃';
-        else if (fileType.includes('zip') || fileType.includes('rar')) thumbnail = '🗜️';
-        else if (fileType.includes('apk')) thumbnail = '📱';
-      }
-      if (isLink) thumbnail = '🔗';
+      let thumbnail = getFileTypeIcon(type, isLink);
 
       return `
         <div class="p-3 border border-gray-600 rounded mb-2 hover:border-green-400 transition-colors">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center flex-1 min-w-0">
-              <div class="text-2xl mr-3">${thumbnail}</div>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-green-400 text-sm truncate">${name}</div>
-                <div class="text-xs text-gray-400">${typeDisplay}</div>
-              </div>
+          <div class="flex items-center mb-2">
+            <div class="mr-3 flex items-center justify-center w-8 h-8">${thumbnail}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-green-400 text-sm">${name}</div>
+              <div class="text-xs text-gray-400">${typeDisplay}</div>
             </div>
-            <a href="${url}" ${downloadAttr} ${onClick} target="${isLink ? '_blank' : '_self'}" class="green-button ml-2 px-3 py-1 text-xs">
-              ${actionText}
-            </a>
           </div>
+          <a href="${url}" ${downloadAttr} ${onClick} target="${isLink ? '_blank' : '_self'}" class="green-button w-full text-center text-xs">
+            ${actionText}
+          </a>
         </div>
       `;
     }
@@ -811,6 +948,45 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+
+    // Refresh data function with loading state
+    async function refreshData() {
+      if (!supabaseClient) {
+        alert('SYSTEM NOT READY - PLEASE WAIT');
+        return;
+      }
+
+      // Show loading state on refresh buttons
+      const refreshButtons = document.querySelectorAll('button[onclick="refreshData()"]');
+      refreshButtons.forEach(btn => {
+        btn.innerHTML = '🔄 REFRESHING...';
+        btn.disabled = true;
+      });
+
+      try {
+        await loadData();
+        
+        // Reset buttons
+        setTimeout(() => {
+          refreshButtons.forEach((btn, index) => {
+            const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
+            btn.innerHTML = labels[index] || '🔄 REFRESH';
+            btn.disabled = false;
+          });
+        }, 500);
+
+      } catch (error) {
+        console.error('Refresh error:', error);
+        alert('REFRESH FAILED: ' + error.message);
+        
+        // Reset buttons on error
+        refreshButtons.forEach((btn, index) => {
+          const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
+          btn.innerHTML = labels[index] || '🔄 REFRESH';
+          btn.disabled = false;
+        });
+      }
     }
 
     // Load existing data
