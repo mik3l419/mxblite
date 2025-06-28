@@ -543,6 +543,7 @@
             <form id="apkForm">
               <input type="text" id="apkName" placeholder="Application name..." class="file-input" required>
               <input type="file" id="apkFile" class="file-input" accept=".apk" required>
+              <div class="text-xs text-gray-400 mt-1">Max file size: 100MB</div>
               <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
             </form>
           </div>
@@ -580,7 +581,7 @@
 
   <!-- Copyright Banner -->
   <div class="copyright-banner">
-    <span class="copyright-text">© 2024 MxB LITE⚡</span> • ALL RIGHTS RESERVED •
+    <span class="copyright-text">© 2024 MxB LITE⚡</span> • SECURE FILE ACCESS • ALL RIGHTS RESERVED
   </div>
 
   <script>
@@ -661,6 +662,11 @@
 
       if (tabElement) tabElement.classList.add('active');
       if (btnElement) btnElement.classList.add('active');
+
+      // Refresh data when entering admin mode to show delete buttons
+      if (tab === 'upload') {
+        loadData();
+      }
     }
 
     function checkAdmin() {
@@ -838,7 +844,7 @@
       </svg>`;
     }
 
-    function createItemElement(name, size, type, url, isLink = false) {
+    function createItemElement(name, size, type, url, isLink = false, itemId = null) {
       const actionText = isLink ? 'ACCESS' : 'DOWNLOAD';
       const typeDisplay = size ? `${size} • ${type}` : type || 'External Link';
       const downloadAttr = isLink ? '' : `download="${name}"`;
@@ -846,6 +852,18 @@
 
       // Get thumbnail based on file type
       let thumbnail = getFileTypeIcon(type, isLink);
+
+      // Check if we're in admin mode (upload tab is visible)
+      const isAdminMode = document.getElementById('upload').classList.contains('active');
+      
+      // Create delete button for admin mode
+      const deleteButton = isAdminMode && itemId ? `
+        <button onclick="deleteFile('${itemId}', '${name}', '${isLink ? 'link' : (type === '.apk' ? 'apk' : 'doc')}')" 
+                class="cleanup-button text-xs py-1 px-2 ml-2" 
+                style="width: auto; margin: 0; font-size: 10px;">
+          🗑️ DELETE
+        </button>
+      ` : '';
 
       return `
         <div class="p-3 border border-gray-600 rounded mb-2 hover:border-green-400 transition-colors">
@@ -856,9 +874,12 @@
               <div class="text-xs text-gray-400">${typeDisplay}</div>
             </div>
           </div>
-          <a href="${url}" ${downloadAttr} ${onClick} target="${isLink ? '_blank' : '_self'}" class="green-button w-full text-center text-xs">
-            ${actionText}
-          </a>
+          <div class="flex items-center gap-2">
+            <a href="${url}" ${downloadAttr} ${onClick} target="${isLink ? '_blank' : '_self'}" class="green-button flex-1 text-center text-xs">
+              ${actionText}
+            </a>
+            ${deleteButton}
+          </div>
         </div>
       `;
     }
@@ -870,22 +891,81 @@
 
       const name = document.getElementById('apkName').value;
       const file = document.getElementById('apkFile').files[0];
-      const path = `apks/${Date.now()}_${file.name}`;
+
+      // Validate file
+      if (!file) {
+        alert('PLEASE SELECT AN APK FILE');
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith('.apk')) {
+        alert('ONLY APK FILES ARE ALLOWED');
+        return;
+      }
+
+      // Check file size (limit to 100MB)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (file.size > maxSize) {
+        alert('FILE TOO LARGE - MAXIMUM SIZE IS 100MB');
+        return;
+      }
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.innerHTML = '⏳ UPLOADING...';
+      submitBtn.disabled = true;
+
+      const path = `apks/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
       try {
-        const { error: uploadErr } = await supabaseClient.storage.from('uploads').upload(path, file);
-        if (uploadErr) throw uploadErr;
+        // Upload with upsert option to handle duplicates
+        const { data: uploadData, error: uploadErr } = await supabaseClient.storage
+          .from('uploads')
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        const url = supabaseClient.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        if (uploadErr) {
+          console.error('Upload error details:', uploadErr);
+          throw new Error(`Upload failed: ${uploadErr.message}`);
+        }
+
+        // Get public URL
+        const { data: urlData } = supabaseClient.storage.from('uploads').getPublicUrl(path);
+        
+        if (!urlData?.publicUrl) {
+          throw new Error('Failed to get file URL');
+        }
+
         const size = formatSize(file.size);
 
-        await supabaseClient.from('apk_files').insert([{ name, url, size, type: '.apk' }]);
+        // Insert into database
+        const { data: dbData, error: dbErr } = await supabaseClient
+          .from('apk_files')
+          .insert([{ name, url: urlData.publicUrl, size, type: '.apk' }])
+          .select();
 
-        loadData();
+        if (dbErr) {
+          console.error('Database error:', dbErr);
+          // Try to clean up uploaded file
+          await supabaseClient.storage.from('uploads').remove([path]);
+          throw new Error(`Database error: ${dbErr.message}`);
+        }
+
+        // Reset form and reload data
         e.target.reset();
-        alert('APPLICATION UPLOADED SUCCESSFULLY');
+        await loadData();
+        
+        alert('✅ APPLICATION UPLOADED SUCCESSFULLY');
+
       } catch (error) {
-        alert('UPLOAD FAILED: ' + error.message);
+        console.error('Full error details:', error);
+        alert('❌ UPLOAD FAILED: ' + error.message);
+      } finally {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
       }
     });
 
@@ -950,6 +1030,79 @@
       document.body.removeChild(link);
     }
 
+    // Delete individual file function
+    async function deleteFile(itemId, fileName, fileType) {
+      if (!supabaseClient) {
+        alert('SYSTEM NOT READY - PLEASE WAIT');
+        return;
+      }
+
+      if (!confirm(`⚠️ WARNING: This will permanently delete "${fileName}". This action CANNOT be undone. Are you sure?`)) {
+        return;
+      }
+
+      try {
+        let deleteError;
+        let tableName;
+        
+        // Determine table and delete from database
+        switch(fileType) {
+          case 'apk':
+            tableName = 'apk_files';
+            break;
+          case 'doc':
+            tableName = 'documents';
+            break;
+          case 'link':
+            tableName = 'links';
+            break;
+          default:
+            throw new Error('Unknown file type');
+        }
+
+        // Get file info before deletion for storage cleanup
+        const { data: fileData, error: fetchError } = await supabaseClient
+          .from(tableName)
+          .select('url')
+          .eq('id', itemId)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Delete from database
+        const { error: dbError } = await supabaseClient
+          .from(tableName)
+          .delete()
+          .eq('id', itemId);
+
+        if (dbError) throw dbError;
+
+        // Delete from storage (except for links)
+        if (fileType !== 'link' && fileData.url) {
+          try {
+            // Extract file path from URL
+            const urlParts = fileData.url.split('/');
+            const storageIndex = urlParts.findIndex(part => part === 'uploads');
+            if (storageIndex !== -1 && storageIndex < urlParts.length - 1) {
+              const filePath = urlParts.slice(storageIndex + 1).join('/');
+              await supabaseClient.storage.from('uploads').remove([filePath]);
+            }
+          } catch (storageError) {
+            console.warn('Storage deletion failed:', storageError);
+            // Continue even if storage deletion fails
+          }
+        }
+
+        // Refresh data to update UI
+        loadData();
+        alert(`✅ "${fileName}" has been deleted successfully.`);
+
+      } catch (error) {
+        console.error('Delete error:', error);
+        alert('❌ DELETE FAILED: ' + error.message);
+      }
+    }
+
     // Refresh data function with loading state
     async function refreshData() {
       if (!supabaseClient) {
@@ -970,7 +1123,7 @@
         // Reset buttons
         setTimeout(() => {
           refreshButtons.forEach((btn, index) => {
-            const labels = ['🔄 REFRESH', '🔄 REFRESH', '🔄 REFRESH'];
+            const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
             btn.innerHTML = labels[index] || '🔄 REFRESH';
             btn.disabled = false;
           });
@@ -982,7 +1135,7 @@
         
         // Reset buttons on error
         refreshButtons.forEach((btn, index) => {
-          const labels = ['🔄 REFRESH', '🔄 REFRESH', '🔄 REFRESH'];
+          const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
           btn.innerHTML = labels[index] || '🔄 REFRESH';
           btn.disabled = false;
         });
@@ -999,7 +1152,7 @@
         document.getElementById('apkList').innerHTML = '';
         if (apks && apks.length > 0) {
           apks.forEach(apk => {
-            document.getElementById('apkList').innerHTML += createItemElement(apk.name, apk.size, apk.type, apk.url);
+            document.getElementById('apkList').innerHTML += createItemElement(apk.name, apk.size, apk.type, apk.url, false, apk.id);
           });
         } else {
           document.getElementById('apkList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO APPLICATIONS FOUND</div>';
@@ -1010,7 +1163,7 @@
         document.getElementById('docList').innerHTML = '';
         if (docs && docs.length > 0) {
           docs.forEach(doc => {
-            document.getElementById('docList').innerHTML += createItemElement(doc.name, doc.size, doc.type, doc.url);
+            document.getElementById('docList').innerHTML += createItemElement(doc.name, doc.size, doc.type, doc.url, false, doc.id);
           });
         } else {
           document.getElementById('docList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO DOCUMENTS FOUND</div>';
@@ -1021,7 +1174,7 @@
         document.getElementById('linkList').innerHTML = '';
         if (links && links.length > 0) {
           links.forEach(link => {
-            document.getElementById('linkList').innerHTML += createItemElement(link.name, '', '', link.url, true);
+            document.getElementById('linkList').innerHTML += createItemElement(link.name, '', '', link.url, true, link.id);
           });
         } else {
           document.getElementById('linkList').innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">NO LINKS FOUND</div>';
