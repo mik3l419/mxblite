@@ -543,7 +543,7 @@
             <form id="apkForm">
               <input type="text" id="apkName" placeholder="Application name..." class="file-input" required>
               <input type="file" id="apkFile" class="file-input" accept=".apk" required>
-              <div class="text-xs text-gray-400 mt-1">Max file size: 100MB</div>
+              <div class="text-xs text-gray-400 mt-1">Max file size: 300MB</div>
               <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
             </form>
           </div>
@@ -904,9 +904,9 @@
       }
 
       // Check file size (limit to 100MB)
-      const maxSize = 100 * 1024 * 1024; // 100MB
+      const maxSize = 300 * 1024 * 1024; // 300MB
       if (file.size > maxSize) {
-        alert('FILE TOO LARGE - MAXIMUM SIZE IS 100MB');
+        alert('FILE TOO LARGE - MAXIMUM SIZE IS 300MB');
         return;
       }
 
