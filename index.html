@@ -428,6 +428,55 @@
     .copyright-banner .copyright-text {
       color: var(--primary-green);
     }
+
+    .upload-progress {
+      margin: 0.75rem 0;
+      padding: 0.5rem;
+      background: #1a1f2e;
+      border: 1px solid var(--border-green);
+      border-radius: 4px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #2d3748;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary-green), var(--secondary-green));
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--primary-green);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .cancel-button {
+      background: var(--danger-red);
+      color: white;
+      border: none;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.2s ease;
+    }
+
+    .cancel-button:hover {
+      background: #ff6b6b;
+    }
   </style>
 </head>
 <body class="min-h-screen p-4 scan-lines">
@@ -513,7 +562,7 @@
     <div id="admin" class="tab">
       <div class="terminal-container">
         <div class="p-4">
-          <h2 class="text-lg font-bold mb-4 text-red-400 text-center">⚠️RESTRICTED ACCESS</h2>
+          <h2 class="text-lg font-bold mb-4 text-red-400 text-center">⚠️RESTRICTED ACCESS⚠️</h2>
           <input 
             id="adminPass" 
             type="password" 
@@ -542,9 +591,18 @@
             <div class="text-xs text-gray-400 mb-2">app-upload.exe</div>
             <form id="apkForm">
               <input type="text" id="apkName" placeholder="Application name..." class="file-input" required>
-              <input type="file" id="apkFile" class="file-input" accept=".apk" required>
-              <div class="text-xs text-gray-400 mt-1">Max file size: 300MB</div>
-              <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
+              <input type="file" id="apkFile" class="file-input" accept=".apk,.zip" required>
+              <div class="text-xs text-gray-400 mt-1">Max file size: 50MB •</div>
+              <div id="apkProgress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                  <div id="apkProgressBar" class="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                  <span id="apkProgressText">0%</span>
+                  <button type="button" id="apkCancelBtn" class="cancel-button">CANCEL</button>
+                </div>
+              </div>
+              <button class="green-button w-full mt-2" type="submit" id="apkSubmitBtn">UPLOAD</button>
             </form>
           </div>
 
@@ -554,7 +612,16 @@
             <form id="docForm">
               <input type="text" id="docName" placeholder="Sample" class="file-input" required>
               <input type="file" id="docFile" class="file-input" accept=".pdf,.doc,.docx" required>
-              <button class="green-button w-full mt-2" type="submit">UPLOAD</button>
+              <div id="docProgress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                  <div id="docProgressBar" class="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                  <span id="docProgressText">0%</span>
+                  <button type="button" id="docCancelBtn" class="cancel-button">CANCEL</button>
+                </div>
+              </div>
+              <button class="green-button w-full mt-2" type="submit" id="docSubmitBtn">UPLOAD</button>
             </form>
           </div>
 
@@ -591,7 +658,19 @@
     window.addEventListener('load', () => {
       if (typeof supabase !== 'undefined') {
         const { createClient } = supabase;
-        supabaseClient = createClient('https://buswluszzfbbezcgwbty.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c3dsdXN6emZiYmV6Y2d3YnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMDY2NDUsImV4cCI6MjA2NjU4MjY0NX0.eX_qEDabyqj0AWeqiwVXko9W4OYg3H9PYNxd5fPKis0');
+        supabaseClient = createClient('https://buswluszzfbbezcgwbty.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c3dsdXN6emZiYmV6Y2d3YnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMDY2NDUsImV4cCI6MjA2NjU4MjY0NX0.eX_qEDabyqj0AWeqiwVXko9W4OYg3H9PYNxd5fPKis0', {
+          db: {
+            schema: 'public',
+          },
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+          },
+          global: {
+            headers: { 'X-Client-Info': 'supabase-js-web' },
+          },
+        });
         loadData();
       } else {
         console.error('Supabase library not loaded');
@@ -884,6 +963,10 @@
       `;
     }
 
+    // Upload controllers for cancellation
+    let apkUploadController = null;
+    let docUploadController = null;
+
     // Form submissions
     document.getElementById('apkForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -894,42 +977,80 @@
 
       // Validate file
       if (!file) {
-        alert('PLEASE SELECT AN APK FILE');
+        alert('PLEASE SELECT A FILE');
         return;
       }
 
-      if (!file.name.toLowerCase().endsWith('.apk')) {
-        alert('ONLY APK FILES ARE ALLOWED');
+      const allowedExtensions = ['.apk', '.zip'];
+      const fileExtension = '.' + file.name.toLowerCase().split('.').pop();
+      if (!allowedExtensions.includes(fileExtension)) {
+        alert('ONLY APK AND ZIP FILES ARE ALLOWED');
         return;
       }
 
-      // Check file size (limit to 100MB)
-      const maxSize = 300 * 1024 * 1024; // 300MB
+      // Check file size (limit to 50MB for better reliability)
+      const maxSize = 50 * 1024 * 1024; // 50MB - more reliable with Supabase
       if (file.size > maxSize) {
-        alert('FILE TOO LARGE - MAXIMUM SIZE IS 300MB');
+        alert('FILE TOO LARGE - MAXIMUM SIZE IS 50MB\n\nFor larger files, consider using a file compression tool.');
         return;
       }
 
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const originalText = submitBtn.innerHTML;
-      submitBtn.innerHTML = '⏳ UPLOADING...';
-      submitBtn.disabled = true;
+      // Show progress UI
+      const submitBtn = document.getElementById('apkSubmitBtn');
+      const progressDiv = document.getElementById('apkProgress');
+      const progressBar = document.getElementById('apkProgressBar');
+      const progressText = document.getElementById('apkProgressText');
+      const cancelBtn = document.getElementById('apkCancelBtn');
 
-      const path = `apks/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      submitBtn.style.display = 'none';
+      progressDiv.style.display = 'block';
+
+      // Create abort controller
+      apkUploadController = new AbortController();
+
+      // Create a more compatible filename
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
+      const path = `apks/${Date.now()}_${sanitizedName}`;
+
+      // Cancel button handler
+      cancelBtn.onclick = () => {
+        if (apkUploadController) {
+          apkUploadController.abort();
+          resetApkUploadUI();
+          alert('❌ UPLOAD CANCELLED');
+        }
+      };
 
       try {
-        // Upload with upsert option to handle duplicates
+        // Simulate progress for user feedback (since Supabase doesn't provide real progress)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          if (progress < 90) {
+            progress += Math.random() * 10;
+            progressBar.style.width = Math.min(progress, 90) + '%';
+            progressText.textContent = Math.floor(Math.min(progress, 90)) + '%';
+          }
+        }, 200);
+
+        // Upload with specific options for better compatibility
         const { data: uploadData, error: uploadErr } = await supabaseClient.storage
           .from('uploads')
           .upload(path, file, {
             cacheControl: '3600',
-            upsert: false
+            upsert: false,
+            duplex: 'half'
           });
+
+        clearInterval(progressInterval);
 
         if (uploadErr) {
           console.error('Upload error details:', uploadErr);
           throw new Error(`Upload failed: ${uploadErr.message}`);
         }
+
+        // Complete progress
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
 
         // Get public URL
         const { data: urlData } = supabaseClient.storage.from('uploads').getPublicUrl(path);
@@ -943,7 +1064,7 @@
         // Insert into database
         const { data: dbData, error: dbErr } = await supabaseClient
           .from('apk_files')
-          .insert([{ name, url: urlData.publicUrl, size, type: '.apk' }])
+          .insert([{ name, url: urlData.publicUrl, size, type: fileExtension }])
           .select();
 
         if (dbErr) {
@@ -954,20 +1075,40 @@
         }
 
         // Reset form and reload data
-        e.target.reset();
+        document.getElementById('apkForm').reset();
         await loadData();
         
-        alert('✅ APPLICATION UPLOADED SUCCESSFULLY');
+        alert('✅ FILE UPLOADED SUCCESSFULLY');
 
       } catch (error) {
-        console.error('Full error details:', error);
-        alert('❌ UPLOAD FAILED: ' + error.message);
+        if (error.name === 'AbortError') {
+          // Upload was cancelled, cleanup
+          try {
+            await supabaseClient.storage.from('uploads').remove([path]);
+          } catch (cleanupError) {
+            console.warn('Cleanup failed:', cleanupError);
+          }
+        } else {
+          console.error('Full error details:', error);
+          alert('❌ UPLOAD FAILED: ' + error.message);
+        }
       } finally {
-        // Reset button
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        resetApkUploadUI();
       }
     });
+
+    function resetApkUploadUI() {
+      const submitBtn = document.getElementById('apkSubmitBtn');
+      const progressDiv = document.getElementById('apkProgress');
+      const progressBar = document.getElementById('apkProgressBar');
+      const progressText = document.getElementById('apkProgressText');
+      
+      submitBtn.style.display = 'block';
+      progressDiv.style.display = 'none';
+      progressBar.style.width = '0%';
+      progressText.textContent = '0%';
+      apkUploadController = null;
+    }
 
     document.getElementById('docForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -975,25 +1116,101 @@
 
       const name = document.getElementById('docName').value;
       const file = document.getElementById('docFile').files[0];
+
+      if (!file) {
+        alert('PLEASE SELECT A DOCUMENT');
+        return;
+      }
+
+      // Show progress UI
+      const submitBtn = document.getElementById('docSubmitBtn');
+      const progressDiv = document.getElementById('docProgress');
+      const progressBar = document.getElementById('docProgressBar');
+      const progressText = document.getElementById('docProgressText');
+      const cancelBtn = document.getElementById('docCancelBtn');
+
+      submitBtn.style.display = 'none';
+      progressDiv.style.display = 'block';
+
+      // Create abort controller
+      docUploadController = new AbortController();
+
       const path = `documents/${Date.now()}_${file.name}`;
 
+      // Cancel button handler
+      cancelBtn.onclick = () => {
+        if (docUploadController) {
+          docUploadController.abort();
+          resetDocUploadUI();
+          alert('❌ UPLOAD CANCELLED');
+        }
+      };
+
       try {
-        const { error: uploadErr } = await supabaseClient.storage.from('uploads').upload(path, file);
+        // Simulate progress for user feedback
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          if (progress < 90) {
+            progress += Math.random() * 10;
+            progressBar.style.width = Math.min(progress, 90) + '%';
+            progressText.textContent = Math.floor(Math.min(progress, 90)) + '%';
+          }
+        }, 200);
+
+        const { error: uploadErr } = await supabaseClient.storage
+          .from('uploads')
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        clearInterval(progressInterval);
+
         if (uploadErr) throw uploadErr;
+
+        // Complete progress
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
 
         const url = supabaseClient.storage.from('uploads').getPublicUrl(path).data.publicUrl;
         const size = formatSize(file.size);
-        const type = file.name.split('.').pop().toLowerCase();
+        const type = '.' + file.name.split('.').pop().toLowerCase();
 
         await supabaseClient.from('documents').insert([{ name, url, size, type }]);
 
         loadData();
-        e.target.reset();
-        alert('DOCUMENT UPLOADED SUCCESSFULLY');
+        document.getElementById('docForm').reset();
+        alert('✅ DOCUMENT UPLOADED SUCCESSFULLY');
+
       } catch (error) {
-        alert('UPLOAD FAILED: ' + error.message);
+        if (error.name === 'AbortError') {
+          // Upload was cancelled, cleanup
+          try {
+            await supabaseClient.storage.from('uploads').remove([path]);
+          } catch (cleanupError) {
+            console.warn('Cleanup failed:', cleanupError);
+          }
+        } else {
+          console.error('Upload error:', error);
+          alert('❌ UPLOAD FAILED: ' + error.message);
+        }
+      } finally {
+        resetDocUploadUI();
       }
     });
+
+    function resetDocUploadUI() {
+      const submitBtn = document.getElementById('docSubmitBtn');
+      const progressDiv = document.getElementById('docProgress');
+      const progressBar = document.getElementById('docProgressBar');
+      const progressText = document.getElementById('docProgressText');
+      
+      submitBtn.style.display = 'block';
+      progressDiv.style.display = 'none';
+      progressBar.style.width = '0%';
+      progressText.textContent = '0%';
+      docUploadController = null;
+    }
 
     document.getElementById('linkForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1123,7 +1340,7 @@
         // Reset buttons
         setTimeout(() => {
           refreshButtons.forEach((btn, index) => {
-            const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
+            const labels = ['🔄 REFRESH', '🔄 REFRESH', '🔄 REFRESH'];
             btn.innerHTML = labels[index] || '🔄 REFRESH';
             btn.disabled = false;
           });
@@ -1135,7 +1352,7 @@
         
         // Reset buttons on error
         refreshButtons.forEach((btn, index) => {
-          const labels = ['🔄 REFRESH APPS', '🔄 REFRESH DOCS', '🔄 REFRESH LINKS'];
+          const labels = ['🔄 REFRESH', '🔄 REFRESH', '🔄 REFRESH'];
           btn.innerHTML = labels[index] || '🔄 REFRESH';
           btn.disabled = false;
         });
